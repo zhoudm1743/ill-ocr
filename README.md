@@ -25,21 +25,8 @@
 | 组件 | 说明 |
 |------|------|
 | [FastAPI](https://fastapi.tiangolo.com/) | HTTP 框架，自带 Swagger 文档 |
-| [RapidOCR](https://github.com/RapidAI/RapidOCR) | 基于 PP-OCR 模型的 ONNX 推理引擎 |
 | [ONNX Runtime](https://onnxruntime.ai/) | 跨平台推理，CPU 兼容性好 |
 | Docker + Compose | 容器化部署 |
-
-**为什么用 RapidOCR 而不是 PaddleOCR？**
-
-在本项目部署过程中验证过以下方案：
-
-| 方案 | 结果 |
-|------|------|
-| PaddleOCR 3.x + PaddlePaddle 3.3.0 | CPU 推理触发 OneDNN/PIR 兼容性错误 |
-| PaddleOCR 2.x + PaddlePaddle 2.6.2 | 部分 CPU 出现 `Illegal instruction (SIGILL)` |
-| **RapidOCR + ONNX Runtime** | **稳定可用，证件识别准确率 95%+** |
-
-RapidOCR 使用与 PaddleOCR 相同的 PP-OCR 模型权重（转 ONNX），识别效果接近，镜像更小、部署更简单。
 
 ---
 
