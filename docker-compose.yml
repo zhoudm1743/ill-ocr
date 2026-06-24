@@ -1,0 +1,24 @@
+services:
+  ill-ocr:
+    build: .
+    image: ill-ocr:latest
+    container_name: ill-ocr
+    ports:
+      - "8000:8000"
+    environment:
+      - TZ=Asia/Shanghai
+    shm_size: "8g"
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 4G
