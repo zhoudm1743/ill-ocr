@@ -10,6 +10,7 @@ services:
     shm_size: "8g"
     restart: unless-stopped
     volumes:
+      - ./app:/app
       - ./logs:/app/logs
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]

@@ -11,6 +11,7 @@ from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from PIL import Image
 from pydantic import BaseModel
 
+from biz_license_parser import parse_biz_license
 from idcard_parser import parse_idcard
 from response import register_exception_handlers, success
 
@@ -32,7 +33,7 @@ async def lifespan(app: FastAPI):
     ocr_engine = None
 
 
-app = FastAPI(title="OCR Service (RapidOCR)", version="1.2.0", lifespan=lifespan)
+app = FastAPI(title="OCR Service (RapidOCR)", version="1.3.0", lifespan=lifespan)
 register_exception_handlers(app)
 
 
@@ -43,6 +44,10 @@ class OCRBase64Request(BaseModel):
 class IDCardBase64Request(BaseModel):
     image: str
     side: Literal["front", "back", "auto"] = "auto"
+
+
+class BizLicenseBase64Request(BaseModel):
+    image: str
 
 
 def _parse_result(result) -> list[dict]:
@@ -83,6 +88,13 @@ async def _ocr_async(img: np.ndarray) -> list[dict]:
 
 def _build_idcard_response(items: list[dict], side: Literal["front", "back", "auto"], include_raw: bool):
     parsed = parse_idcard(items, side=side)
+    if include_raw:
+        return {**parsed, "raw": items}
+    return parsed
+
+
+def _build_biz_license_response(items: list[dict], include_raw: bool):
+    parsed = parse_biz_license(items)
     if include_raw:
         return {**parsed, "raw": items}
     return parsed
@@ -176,3 +188,35 @@ async def ocr_idcard_base64(
     if not items:
         raise HTTPException(status_code=422, detail="未识别到文字，请检查图片是否清晰")
     return success(_build_idcard_response(items, req.side, include_raw))
+
+
+@app.post("/ocr/biz-license")
+async def ocr_biz_license(
+    file: UploadFile = File(...),
+    include_raw: bool = Query(False, description="是否返回原始 OCR 结果"),
+):
+    data = await file.read()
+    if not data:
+        raise HTTPException(status_code=400, detail="上传文件为空")
+    img = _bytes_to_ndarray(data)
+    items = await _ocr_async(img)
+    if not items:
+        raise HTTPException(status_code=422, detail="未识别到文字，请检查图片是否清晰")
+    return success(_build_biz_license_response(items, include_raw))
+
+
+@app.post("/ocr/biz-license/base64")
+async def ocr_biz_license_base64(
+    req: BizLicenseBase64Request,
+    include_raw: bool = Query(False, description="是否返回原始 OCR 结果"),
+):
+    raw = req.image.split(",", 1)[-1].strip()
+    try:
+        data = base64.b64decode(raw, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=f"base64 解码失败: {exc}") from exc
+    img = _bytes_to_ndarray(data)
+    items = await _ocr_async(img)
+    if not items:
+        raise HTTPException(status_code=422, detail="未识别到文字，请检查图片是否清晰")
+    return success(_build_biz_license_response(items, include_raw))
