@@ -13,7 +13,16 @@ from pydantic import BaseModel
 
 from biz_license_parser import parse_biz_license
 from idcard_parser import parse_idcard
-from response import register_exception_handlers, success
+from response import (
+    register_exception_handlers,
+    success,
+    HealthResponse,
+    OCRUploadResponse,
+    IDCardFrontResponse,
+    IDCardBackResponse,
+    IDCardAutoResponse,
+    BizLicenseResponse,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("rapid-ocr")
@@ -100,12 +109,12 @@ def _build_biz_license_response(items: list[dict], include_raw: bool):
     return parsed
 
 
-@app.get("/health")
+@app.get("/health", response_model=HealthResponse)
 async def health():
     return success({"status": "ok", "ready": ocr_engine is not None})
 
 
-@app.post("/ocr/upload")
+@app.post("/ocr/upload", response_model=OCRUploadResponse)
 async def ocr_upload(file: UploadFile = File(...)):
     data = await file.read()
     if not data:
@@ -115,7 +124,7 @@ async def ocr_upload(file: UploadFile = File(...)):
     return success({"count": len(results), "results": results})
 
 
-@app.post("/ocr/base64")
+@app.post("/ocr/base64", response_model=OCRUploadResponse)
 async def ocr_base64(req: OCRBase64Request):
     raw = req.image.split(",", 1)[-1].strip()
     try:
@@ -127,7 +136,7 @@ async def ocr_base64(req: OCRBase64Request):
     return success({"count": len(results), "results": results})
 
 
-@app.post("/ocr/idcard")
+@app.post("/ocr/idcard", response_model=IDCardAutoResponse)
 async def ocr_idcard(
     file: UploadFile = File(...),
     side: Literal["front", "back", "auto"] = Query("auto", description="身份证面：front/back/auto"),
@@ -143,7 +152,7 @@ async def ocr_idcard(
     return success(_build_idcard_response(items, side, include_raw))
 
 
-@app.post("/ocr/idcard/front")
+@app.post("/ocr/idcard/front", response_model=IDCardFrontResponse)
 async def ocr_idcard_front(
     file: UploadFile = File(...),
     include_raw: bool = Query(False),
@@ -158,7 +167,7 @@ async def ocr_idcard_front(
     return success(_build_idcard_response(items, "front", include_raw))
 
 
-@app.post("/ocr/idcard/back")
+@app.post("/ocr/idcard/back", response_model=IDCardBackResponse)
 async def ocr_idcard_back(
     file: UploadFile = File(...),
     include_raw: bool = Query(False),
@@ -173,7 +182,7 @@ async def ocr_idcard_back(
     return success(_build_idcard_response(items, "back", include_raw))
 
 
-@app.post("/ocr/idcard/base64")
+@app.post("/ocr/idcard/base64", response_model=IDCardAutoResponse)
 async def ocr_idcard_base64(
     req: IDCardBase64Request,
     include_raw: bool = Query(False),
@@ -190,7 +199,7 @@ async def ocr_idcard_base64(
     return success(_build_idcard_response(items, req.side, include_raw))
 
 
-@app.post("/ocr/biz-license")
+@app.post("/ocr/biz-license", response_model=BizLicenseResponse)
 async def ocr_biz_license(
     file: UploadFile = File(...),
     include_raw: bool = Query(False, description="是否返回原始 OCR 结果"),
@@ -205,7 +214,7 @@ async def ocr_biz_license(
     return success(_build_biz_license_response(items, include_raw))
 
 
-@app.post("/ocr/biz-license/base64")
+@app.post("/ocr/biz-license/base64", response_model=BizLicenseResponse)
 async def ocr_biz_license_base64(
     req: BizLicenseBase64Request,
     include_raw: bool = Query(False, description="是否返回原始 OCR 结果"),
